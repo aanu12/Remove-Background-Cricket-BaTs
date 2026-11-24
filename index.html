@@ -148,6 +148,8 @@ const MAX_PX = 16000000;   // iOS Safari canvas area limit (with safety margin)
 const THUMB = 700;         // preview size only; exports always use the original file
 const ZIP_GROUP = 8;       // images per ZIP so iPhone memory stays safe
 
+const crumb = v => { try { localStorage.setItem("crumb", v); } catch {} };
+const useGpu = new URLSearchParams(location.search).has("gpu"); // WebGPU is off by default: it crashes many iPhones
 const settings = { crisp: 2.5, shift: 0, quality: "fast" };
 const items = [];
 let tf = null, model = null, modelKey = null, busy = false, nextId = 1, objectUrls = [];
@@ -206,19 +208,21 @@ async function loadModel(key){
   const { AutoModel, Tensor } = await ensureTf();
   const spec = MODELS[key], S = spec.size;
   const plans = [];
-  if (navigator.gpu) plans.push({ device: "webgpu", dtype: "fp16" }, { device: "webgpu", dtype: "fp32" });
+  if (useGpu && navigator.gpu) plans.push({ device: "webgpu", dtype: "fp16" }, { device: "webgpu", dtype: "fp32" });
   plans.push({ device: "wasm", dtype: "fp32" });
   let lastErr;
   for (const id of spec.ids){
     for (const plan of plans){
       try {
         setStatus(`Preparing model (${plan.device}, ${plan.dtype})…`);
-        const m = await AutoModel.from_pretrained(id, { device: plan.device, dtype: plan.dtype, progress_callback: onModelProgress });
+        crumb("downloading/loading model " + plan.device); const m = await AutoModel.from_pretrained(id, { device: plan.device, dtype: plan.dtype, progress_callback: onModelProgress });
         const inName = m.sessions?.model?.inputNames?.[0] ?? "input_image";
-        // warm-up run proves this backend really works before we commit to it
-        const dummy = new Tensor("float32", new Float32Array(3 * S * S), [1, 3, S, S]);
-        const out = await m({ [inName]: dummy });
-        Object.values(out).forEach(t => t?.dispose?.());
+        crumb("model loaded");
+        if (plan.device === "webgpu"){ // warm-up only needed to validate GPU
+          const dummy = new Tensor("float32", new Float32Array(3 * S * S), [1, 3, S, S]);
+          const out = await m({ [inName]: dummy });
+          Object.values(out).forEach(t => t?.dispose?.());
+        }
         model = { m, inName, S, plan, id }; modelKey = key;
         setStatus(`Model ready (${plan.device}).`);
         return model;
@@ -355,8 +359,10 @@ async function addFiles(files){
 
 /* ---------- processing ---------- */
 async function processItem(it, m){
+  crumb("photo: decoding " + it.file.name);
   const bmp = await decode(it.file);
   const tensor = toTensor(bmp, m.S);
+  crumb("photo: running model");
   bmp.close?.();
   const res = await m.m({ [m.inName]: tensor });
   const t = res.output_image ?? Object.values(res)[0];
@@ -364,6 +370,7 @@ async function processItem(it, m){
   Object.values(res).forEach(x => x?.dispose?.());
   tensor.dispose?.();
   it.mask = maskToCanvas(logits, m.S);
+  crumb("ok");
 }
 
 async function runAll(){
@@ -529,6 +536,7 @@ $("#quality").addEventListener("change", e => {
   if (reset) setStatus("Quality changed. Tap “Remove backgrounds” to redo your photos.");
 });
 
+try { const c = localStorage.getItem("crumb"); if (c && c !== "ok") setStatus("Last time the page closed during: " + c + ". Running in safe mode (CPU)."); } catch {}
 if (!("createImageBitmap" in window)) setStatus("This browser is too old. Please update iOS.");
 </script>
 </body>
