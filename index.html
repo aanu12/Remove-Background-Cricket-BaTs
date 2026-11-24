@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Bat Cutout">
+<meta name="theme-color" content="#1b7f4b">
+<title>Bat Cutout</title>
+<style>
+:root{
+  --bg:#f4f6f5; --card:#ffffff; --text:#14201a; --muted:#66756d; --line:#e1e7e3;
+  --accent:#1b7f4b; --accent-2:#14633a; --danger:#c2362b; --warn:#b7791f; --radius:16px;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0f1512; --card:#18211c; --text:#eaf1ed; --muted:#93a39a; --line:#26332b; --accent:#2fb36e; --accent-2:#27995e;}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:16px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) calc(32px + env(safe-area-inset-bottom)) env(safe-area-inset-left)}
+.top{display:flex;gap:12px;align-items:center;padding:18px 16px 6px;max-width:980px;margin:0 auto}
+.logo{width:44px;height:44px;border-radius:12px;background:var(--accent);display:grid;place-items:center;font-size:24px}
+h1{font-size:20px;margin:0;letter-spacing:-.01em}
+.top p{margin:0;color:var(--muted);font-size:13px}
+main{max-width:980px;margin:0 auto;padding:8px 16px;display:grid;gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+.drop{display:grid;gap:4px;place-items:center;text-align:center;padding:26px 12px;border:2px dashed var(--line);
+  border-radius:14px;cursor:pointer}
+.drop strong{font-size:17px}
+.drop span{color:var(--muted);font-size:13px}
+.drop:active{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:520px){.grid2{grid-template-columns:1fr}}
+label.f{display:grid;gap:6px;font-size:13px;color:var(--muted)}
+label.f b{color:var(--text);font-weight:600;font-size:14px}
+select,input[type=range]{width:100%}
+select{font:inherit;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text)}
+input[type=range]{accent-color:var(--accent)}
+.seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
+.seg button{flex:1;border:0;background:transparent;color:var(--text);font:inherit;padding:8px;border-radius:8px}
+.seg button.on{background:var(--accent);color:#fff}
+.checks{display:flex;gap:16px;flex-wrap:wrap;font-size:14px}
+.checks label{display:flex;gap:8px;align-items:center}
+.checks input{width:20px;height:20px;accent-color:var(--accent)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+button.btn{font:inherit;font-weight:600;border:0;border-radius:12px;padding:13px 16px;background:var(--accent);color:#fff;flex:1;min-width:130px}
+button.btn:active{background:var(--accent-2)}
+button.btn.alt{background:transparent;color:var(--text);border:1px solid var(--line)}
+button.btn:disabled{opacity:.45}
+.status{font-size:13px;color:var(--muted);min-height:18px}
+.progress{height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.progress>i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.item{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;position:relative}
+.pv{aspect-ratio:1/1;background:#fff;display:grid;place-items:center;user-select:none;-webkit-user-select:none;
+  -webkit-touch-callout:none;touch-action:manipulation}
+body[data-bg=checker] .pv{background:conic-gradient(#dcdcdc 25%,#fff 0 50%,#dcdcdc 0 75%,#fff 0) 0 0/16px 16px}
+.pv canvas{width:100%;height:100%;object-fit:contain;pointer-events:none}
+.meta{padding:8px 10px;display:grid;gap:6px}
+.name{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{position:absolute;top:8px;left:8px;font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;background:#0008;color:#fff}
+.badge.done{background:var(--accent)} .badge.error{background:var(--danger)} .badge.processing{background:var(--warn)}
+.mini{display:flex;gap:6px}
+.mini button{flex:1;font:inherit;font-size:13px;padding:7px;border-radius:9px;border:1px solid var(--line);background:transparent;color:var(--text)}
+.dl{display:grid;gap:8px}
+.dl a{display:flex;justify-content:space-between;gap:8px;text-decoration:none;color:#fff;background:var(--accent);
+  padding:13px 14px;border-radius:12px;font-weight:600}
+.dl a span{font-weight:400;opacity:.9}
+.note{font-size:12px;color:var(--muted)}
+footer{max-width:980px;margin:6px auto 0;padding:0 16px;font-size:11px;color:var(--muted)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body data-bg="white">
+<header class="top">
+  <div class="logo">🏏</div>
+  <div><h1>Bat Cutout</h1><p>Batch background remover · runs fully on your device</p></div>
+</header>
+
+<main>
+  <section class="card">
+    <label class="drop" for="file">
+      <strong>Tap to choose product photos</strong>
+      <span>Select many at once · JPG, PNG, WebP, HEIC</span>
+    </label>
+    <input id="file" type="file" accept="image/*" multiple hidden>
+  </section>
+
+  <section class="card" style="display:grid;gap:14px">
+    <div class="grid2">
+      <label class="f"><b>Quality</b>
+        <select id="quality">
+          <option value="fast">Balanced · 512 px model (low memory)</option>
+          <option value="max">Maximum · 1024 px model (experimental on iPhone)</option>
+        </select>
+      </label>
+      <div class="f"><b>Preview background</b>
+        <div class="seg" id="bgseg">
+          <button data-bg="white" class="on">White</button>
+          <button data-bg="checker">Transparent</button>
+        </div>
+      </div>
+      <label class="f"><b>Edge crispness <span id="crispV">2.5</span></b>
+        <input id="crisp" type="range" min="1" max="8" step="0.5" value="2.5">
+      </label>
+      <label class="f"><b>Edge position <span id="shiftV">0</span></b>
+        <input id="shift" type="range" min="-0.3" max="0.3" step="0.02" value="0">
+        <span>Right = tighter (removes halo) · Left = looser</span>
+      </label>
+    </div>
+    <div class="checks">
+      <span style="color:var(--muted);font-size:13px">Export:</span>
+      <label><input type="checkbox" id="expT" checked> Transparent PNG</label>
+      <label><input type="checkbox" id="expW"> White-background PNG</label>
+    </div>
+  </section>
+
+  <section class="card" style="display:grid;gap:10px">
+    <div class="row">
+      <button class="btn" id="run" disabled>Remove backgrounds</button>
+      <button class="btn alt" id="export" disabled>Export all (ZIP)</button>
+      <button class="btn alt" id="clear" disabled>Clear</button>
+    </div>
+    <div class="progress" id="progress" hidden><i id="bar"></i></div>
+    <div class="status" id="status">Choose photos to begin. The AI model (~100–200 MB) downloads once, then is cached.</div>
+    <div class="dl" id="downloads"></div>
+  </section>
+
+  <section class="grid" id="grid"></section>
+  <p class="note" style="padding:0 4px">Tip: press and hold a result to see the original. Output keeps your photo’s original pixels; only transparency is added.</p>
+</main>
+
+<footer>
+  Model: BiRefNet_lite (MIT) · Runtime: Transformers.js (Apache-2.0) &amp; ONNX Runtime Web (MIT).
+  Photos never leave your device.
+</footer>
+
+<script type="module">
+const $ = s => document.querySelector(s);
+const TF_URL = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3";
+const MODELS = {
+  fast: { size: 512,  ids: ["shozebDev/birefnet-lite-512-onnx"] },
+  max:  { size: 1024, ids: ["onnx-community/BiRefNet_lite-ONNX", "onnx-community/BiRefNet_lite"] }
+};
+const MAX_PX = 16000000;   // iOS Safari canvas area limit (with safety margin)
+const THUMB = 700;         // preview size only; exports always use the original file
+const ZIP_GROUP = 8;       // images per ZIP so iPhone memory stays safe
+
+const settings = { crisp: 2.5, shift: 0, quality: "fast" };
+const items = [];
+let tf = null, model = null, modelKey = null, busy = false, nextId = 1, objectUrls = [];
+
+/* ---------- small helpers ---------- */
+const tick = () => new Promise(r => setTimeout(r, 0));
+const makeCanvas = (w, h) => { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; };
+const mb = n => (n / 1048576).toFixed(1) + " MB";
+function setStatus(t){ $("#status").textContent = t; }
+function setProgress(p){ const el = $("#progress"); el.hidden = p == null; if (p != null) $("#bar").style.width = (p * 100).toFixed(1) + "%"; }
+
+async function decode(file){
+  try { return await createImageBitmap(file, { imageOrientation: "from-image" }); }
+  catch { return await createImageBitmap(file); }
+}
+
+// Step-down resize (halving) so big photos shrink without aliasing.
+function resizeTo(src, w, h){
+  let cur = src, cw = src.width, ch = src.height;
+  while (cw / 2 >= w && ch / 2 >= h){
+    const nw = Math.max(w, Math.floor(cw / 2)), nh = Math.max(h, Math.floor(ch / 2));
+    const c = makeCanvas(nw, nh), x = c.getContext("2d");
+    x.imageSmoothingQuality = "high"; x.drawImage(cur, 0, 0, nw, nh);
+    if (cur !== src) cur.width = 0;
+    cur = c; cw = nw; ch = nh;
+  }
+  const out = makeCanvas(w, h), x = out.getContext("2d", { willReadFrequently: true });
+  x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "high";
+  x.drawImage(cur, 0, 0, w, h);
+  if (cur !== src) cur.width = 0;
+  return out;
+}
+
+/* ---------- model ---------- */
+function onModelProgress(p){
+  if (p.status === "progress" && /\.onnx/.test(p.file || "")) {
+    setStatus(`Downloading model… ${Math.round(p.progress || 0)}% (first time only)`);
+    setProgress((p.progress || 0) / 100);
+  }
+}
+
+async function ensureTf(){
+  if (tf) return tf;
+  setStatus("Loading AI engine…");
+  tf = await import(TF_URL);
+  tf.env.allowLocalModels = false;
+  tf.env.useBrowserCache = true;
+  try { if (!self.crossOriginIsolated) tf.env.backends.onnx.wasm.numThreads = 1; } catch {}
+  try { navigator.storage?.persist?.(); } catch {}
+  return tf;
+}
+
+async function loadModel(key){
+  if (model && modelKey === key) return model;
+  model = null; modelKey = null;
+  const { AutoModel, Tensor } = await ensureTf();
+  const spec = MODELS[key], S = spec.size;
+  const plans = [];
+  if (navigator.gpu) plans.push({ device: "webgpu", dtype: "fp16" }, { device: "webgpu", dtype: "fp32" });
+  plans.push({ device: "wasm", dtype: "fp32" });
+  let lastErr;
+  for (const id of spec.ids){
+    for (const plan of plans){
+      try {
+        setStatus(`Preparing model (${plan.device}, ${plan.dtype})…`);
+        const m = await AutoModel.from_pretrained(id, { device: plan.device, dtype: plan.dtype, progress_callback: onModelProgress });
+        const inName = m.sessions?.model?.inputNames?.[0] ?? "input_image";
+        // warm-up run proves this backend really works before we commit to it
+        const dummy = new Tensor("float32", new Float32Array(3 * S * S), [1, 3, S, S]);
+        const out = await m({ [inName]: dummy });
+        Object.values(out).forEach(t => t?.dispose?.());
+        model = { m, inName, S, plan, id }; modelKey = key;
+        setStatus(`Model ready (${plan.device}).`);
+        return model;
+      } catch (e) {
+        lastErr = e; console.warn("Model plan failed", id, plan, e);
+        if (/404|not found|could not locate/i.test(String(e?.message))) break; // try next repo id
+      }
+    }
+  }
+  throw lastErr || new Error("Model could not be loaded");
+}
+
+function toTensor(src, S){
+  const { Tensor } = tf;
+  const c = resizeTo(src, S, S);
+  const d = c.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, S, S).data;
+  c.width = 0;
+  const n = S * S, f = new Float32Array(3 * n);
+  const mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225];
+  for (let i = 0; i < n; i++){
+    f[i]         = (d[i*4]     / 255 - mean[0]) / std[0];
+    f[n + i]     = (d[i*4 + 1] / 255 - mean[1]) / std[1];
+    f[2 * n + i] = (d[i*4 + 2] / 255 - mean[2]) / std[2];
+  }
+  return new Tensor("float32", f, [1, 3, S, S]);
+}
+
+function maskToCanvas(logits, S){
+  const c = makeCanvas(S, S), x = c.getContext("2d");
+  const id = x.createImageData(S, S), d = id.data;
+  for (let i = 0; i < S * S; i++){
+    const v = Math.round(255 / (1 + Math.exp(-logits[i])));
+    d[i*4] = d[i*4+1] = d[i*4+2] = v; d[i*4+3] = 255;
+  }
+  x.putImageData(id, 0, 0);
+  return c;
+}
+
+/* ---------- compositing (only changes the alpha channel; RGB comes from the original) ---------- */
+function alphaLut(){
+  const lut = new Uint8ClampedArray(256), t = 0.5 + settings.shift, k = settings.crisp;
+  for (let v = 0; v < 256; v++){
+    const a = Math.min(1, Math.max(0, (v / 255 - t) * k + 0.5));
+    lut[v] = Math.round(a * 255);
+  }
+  return lut;
+}
+
+function compose(src, w, h, maskCanvas, whiteBg){
+  const out = makeCanvas(w, h), ctx = out.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(src, 0, 0, w, h);
+  const img = ctx.getImageData(0, 0, w, h), px = img.data;
+  const mc = makeCanvas(w, h), mx = mc.getContext("2d", { willReadFrequently: true });
+  mx.imageSmoothingEnabled = true; mx.imageSmoothingQuality = "high";
+  mx.drawImage(maskCanvas, 0, 0, w, h);
+  const md = mx.getImageData(0, 0, w, h).data;
+  mc.width = 0;
+  const lut = alphaLut(), n = w * h;
+  if (whiteBg){
+    for (let i = 0, j = 0; i < n; i++, j += 4){
+      const a = lut[md[j]] / 255 * (px[j+3] / 255), b = 255 * (1 - a);
+      px[j] = px[j] * a + b; px[j+1] = px[j+1] * a + b; px[j+2] = px[j+2] * a + b; px[j+3] = 255;
+    }
+  } else {
+    for (let i = 0, j = 0; i < n; i++, j += 4) px[j+3] = (lut[md[j]] * px[j+3]) / 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  return out;
+}
+
+/* ---------- items / UI ---------- */
+function addCard(it){
+  const el = document.createElement("div");
+  el.className = "item";
+  el.innerHTML = `<div class="pv"><canvas width="4" height="3"></canvas></div><span class="badge">Queued</span>
+    <div class="meta"><div class="name"></div><div class="mini"><button data-a="save" disabled>Save PNG</button><button data-a="del">Remove</button></div></div>`;
+  el.querySelector(".name").textContent = it.file.name;
+  it.el = el; it.canvas = el.querySelector("canvas"); it.badge = el.querySelector(".badge");
+  const pv = el.querySelector(".pv");
+  const show = o => () => drawItem(it, o);
+  pv.addEventListener("pointerdown", show(true));
+  ["pointerup", "pointerleave", "pointercancel"].forEach(ev => pv.addEventListener(ev, show(false)));
+  pv.addEventListener("contextmenu", e => e.preventDefault());
+  el.querySelector('[data-a="del"]').onclick = () => { items.splice(items.indexOf(it), 1); el.remove(); refreshButtons(); };
+  el.querySelector('[data-a="save"]').onclick = () => saveOne(it);
+  $("#grid").appendChild(el);
+}
+
+function updateBadge(it){
+  const t = { queued: "Queued", processing: "Working…", done: "Done", error: "Error" }[it.state];
+  it.badge.textContent = t; it.badge.className = "badge " + it.state;
+  it.el.querySelector('[data-a="save"]').disabled = it.state !== "done";
+  if (it.state === "error") it.badge.title = it.err || "";
+}
+
+function drawItem(it, original = false){
+  if (!it.thumb) return;
+  const w = it.thumb.width, h = it.thumb.height, cv = it.canvas;
+  if (cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; }
+  const ctx = cv.getContext("2d");
+  ctx.clearRect(0, 0, w, h);
+  if (original || !it.mask){ ctx.drawImage(it.thumb, 0, 0); return; }
+  const c = compose(it.thumb, w, h, it.mask, false);
+  ctx.drawImage(c, 0, 0); c.width = 0;
+}
+
+function refreshButtons(){
+  $("#run").disabled = busy || !items.some(i => i.state === "queued" || i.state === "error");
+  $("#export").disabled = busy || !items.some(i => i.state === "done");
+  $("#clear").disabled = busy || !items.length;
+}
+
+async function addFiles(files){
+  const fresh = [];
+  for (const f of files){
+    if (items.some(i => i.file.name === f.name && i.file.size === f.size && i.file.lastModified === f.lastModified)) continue;
+    const it = { id: nextId++, file: f, state: "queued", thumb: null, mask: null };
+    items.push(it); addCard(it); fresh.push(it);
+  }
+  refreshButtons();
+  setStatus(`${items.length} photo(s) loaded. Tap “Remove backgrounds”.`);
+  for (const it of fresh){            // thumbnails, one at a time to keep memory low
+    try {
+      const bmp = await decode(it.file);
+      const sc = Math.min(1, THUMB / Math.max(bmp.width, bmp.height));
+      it.thumb = resizeTo(bmp, Math.max(1, Math.round(bmp.width * sc)), Math.max(1, Math.round(bmp.height * sc)));
+      it.w = bmp.width; it.h = bmp.height; bmp.close?.();
+      drawItem(it);
+    } catch (e) { it.state = "error"; it.err = "Could not open this image"; updateBadge(it); }
+    await tick();
+  }
+  refreshButtons();
+}
+
+/* ---------- processing ---------- */
+async function processItem(it, m){
+  const bmp = await decode(it.file);
+  const tensor = toTensor(bmp, m.S);
+  bmp.close?.();
+  const res = await m.m({ [m.inName]: tensor });
+  const t = res.output_image ?? Object.values(res)[0];
+  const logits = Float32Array.from(t.data);
+  Object.values(res).forEach(x => x?.dispose?.());
+  tensor.dispose?.();
+  it.mask = maskToCanvas(logits, m.S);
+}
+
+async function runAll(){
+  if (busy) return;
+  const todo = items.filter(i => i.state === "queued" || i.state === "error");
+  if (!todo.length) return;
+  busy = true; refreshButtons();
+  let wl = null; try { wl = await navigator.wakeLock?.request("screen"); } catch {}
+  try {
+    const m = await loadModel(settings.quality);
+    let n = 0;
+    for (const it of todo){
+      it.state = "processing"; updateBadge(it);
+      setStatus(`Removing background ${n + 1} of ${todo.length}…`); setProgress(n / todo.length);
+      await tick();
+      try { await processItem(it, m); it.state = "done"; }
+      catch (e) { console.error(e); it.state = "error"; it.err = e?.message || String(e); }
+      updateBadge(it); drawItem(it); n++;
+    }
+    setProgress(1);
+    const ok = items.filter(i => i.state === "done").length, bad = items.filter(i => i.state === "error").length;
+    setStatus(`Finished: ${ok} done${bad ? `, ${bad} failed (tap Remove backgrounds to retry)` : ""}. Model backend: ${m.plan.device}.`);
+  } catch (e) {
+    console.error(e);
+    setStatus("Could not load the model: " + (e?.message || e) + " — check your internet connection and try Balanced quality.");
+    setProgress(null);
+  } finally {
+    busy = false; refreshButtons(); try { wl?.release(); } catch {}
+    setTimeout(() => setProgress(null), 1500);
+  }
+}
+
+/* ---------- full-resolution export ---------- */
+async function renderFull(it, white){
+  const bmp = await decode(it.file);
+  let w = bmp.width, h = bmp.height, resized = false;
+  const sc = Math.min(1, Math.sqrt(MAX_PX / (w * h)));
+  if (sc < 1){ w = Math.floor(w * sc); h = Math.floor(h * sc); resized = true; }
+  const out = compose(bmp, w, h, it.mask, white);
+  bmp.close?.();
+  const blob = await new Promise(r => out.toBlob(r, "image/png"));
+  out.width = 0;
+  if (!blob) throw new Error("PNG encoding failed (image too large for this device)");
+  return { blob, resized };
+}
+
+const usedNames = new Set();
+function baseName(it){
+  if (it.base) return it.base;
+  let b = it.file.name.replace(/\.[^.]+$/, "").replace(/[^\w\-. ]+/g, "_") || "image";
+  let n = b, i = 2; while (usedNames.has(n)) n = `${b}_${i++}`;
+  usedNames.add(n); return (it.base = n);
+}
+
+function download(blob, name){
+  const url = URL.createObjectURL(blob); objectUrls.push(url);
+  const a = document.createElement("a"); a.href = url; a.download = name; a.className = "dlink";
+  a.innerHTML = `${name} <span>${mb(blob.size)}</span>`;
+  $("#downloads").appendChild(a);
+  return a;
+}
+
+async function saveOne(it){
+  const wantT = $("#expT").checked, white = !wantT && $("#expW").checked;
+  setStatus("Rendering full-resolution PNG…");
+  try {
+    const r = await renderFull(it, white);
+    const a = download(r.blob, `${baseName(it)}-${white ? "white" : "transparent"}.png`);
+    a.click();
+    setStatus(`Saved ${a.download}. If nothing happened, tap the green button below.` + (r.resized ? " (Resized to fit iPhone canvas limit.)" : ""));
+  } catch (e) { setStatus("Save failed: " + (e?.message || e)); }
+}
+
+/* minimal store-only ZIP writer (PNG is already compressed) */
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++){ let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(buf){ let c = 0xFFFFFFFF; for (let i = 0; i < buf.length; i++) c = CRC[(c ^ buf[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+async function makeZip(files){
+  const enc = new TextEncoder(), parts = [], cds = []; let offset = 0;
+  const d = new Date();
+  const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+  const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  for (const f of files){
+    const data = new Uint8Array(await f.blob.arrayBuffer());
+    const crc = crc32(data), name = enc.encode(f.name), size = data.length;
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true);
+    lh.setUint16(10, time, true); lh.setUint16(12, date, true); lh.setUint32(14, crc, true);
+    lh.setUint32(18, size, true); lh.setUint32(22, size, true); lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+    parts.push(lh.buffer, name, f.blob);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true);
+    ch.setUint16(10, 0, true); ch.setUint16(12, time, true); ch.setUint16(14, date, true); ch.setUint32(16, crc, true);
+    ch.setUint32(20, size, true); ch.setUint32(24, size, true); ch.setUint16(28, name.length, true);
+    ch.setUint32(42, offset, true);
+    cds.push(ch.buffer, name);
+    offset += 30 + name.length + size;
+  }
+  const cdSize = cds.reduce((s, p) => s + (p.byteLength ?? p.length), 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+  end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
+  return new Blob([...parts, ...cds, end.buffer], { type: "application/zip" });
+}
+
+async function exportAll(){
+  if (busy) return;
+  const done = items.filter(i => i.state === "done");
+  const wantT = $("#expT").checked, wantW = $("#expW").checked;
+  if (!done.length) return;
+  if (!wantT && !wantW){ setStatus("Tick at least one export type."); return; }
+  busy = true; refreshButtons();
+  objectUrls.forEach(u => URL.revokeObjectURL(u)); objectUrls = []; $("#downloads").innerHTML = "";
+  let resizedCount = 0;
+  try {
+    const groups = []; for (let i = 0; i < done.length; i += ZIP_GROUP) groups.push(done.slice(i, i + ZIP_GROUP));
+    let k = 0;
+    for (let g = 0; g < groups.length; g++){
+      const files = [];
+      for (const it of groups[g]){
+        setStatus(`Rendering full-resolution PNGs… ${++k} of ${done.length}`); setProgress(k / done.length);
+        await tick();
+        if (wantT){ const r = await renderFull(it, false); if (r.resized) resizedCount++; files.push({ name: `transparent/${baseName(it)}.png`, blob: r.blob }); }
+        if (wantW){ const r = await renderFull(it, true);  files.push({ name: `white-background/${baseName(it)}.png`, blob: r.blob }); }
+      }
+      setStatus("Packing ZIP…");
+      const zip = await makeZip(files);
+      download(zip, groups.length === 1 ? "bat-cutouts.zip" : `bat-cutouts-part${g + 1}-of-${groups.length}.zip`);
+    }
+    setStatus(`Ready. Tap a green button to save to Files.` + (groups.length > 1 ? ` (${groups.length} ZIPs, ${ZIP_GROUP} photos each, to protect iPhone memory.)` : "") +
+      (resizedCount ? ` ${resizedCount} very large photo(s) were reduced to fit the iPhone canvas limit.` : " Original resolution kept."));
+  } catch (e) { console.error(e); setStatus("Export failed: " + (e?.message || e)); }
+  finally { busy = false; refreshButtons(); setTimeout(() => setProgress(null), 1200); }
+}
+
+function clearAll(){
+  items.length = 0; $("#grid").innerHTML = ""; $("#downloads").innerHTML = "";
+  objectUrls.forEach(u => URL.revokeObjectURL(u)); objectUrls = []; usedNames.clear();
+  setStatus("Choose photos to begin."); refreshButtons();
+}
+
+/* ---------- wiring ---------- */
+$("#file").addEventListener("change", e => { addFiles([...e.target.files]); e.target.value = ""; });
+$("#run").onclick = runAll;
+$("#export").onclick = exportAll;
+$("#clear").onclick = clearAll;
+
+$("#bgseg").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  document.body.dataset.bg = b.dataset.bg;
+  document.querySelectorAll("#bgseg button").forEach(x => x.classList.toggle("on", x === b));
+});
+
+let redrawTimer;
+function redrawSoon(){ clearTimeout(redrawTimer); redrawTimer = setTimeout(() => items.forEach(i => i.mask && drawItem(i)), 60); }
+$("#crisp").addEventListener("input", e => { settings.crisp = +e.target.value; $("#crispV").textContent = settings.crisp; redrawSoon(); });
+$("#shift").addEventListener("input", e => { settings.shift = +e.target.value; $("#shiftV").textContent = settings.shift; redrawSoon(); });
+
+$("#quality").addEventListener("change", e => {
+  settings.quality = e.target.value;
+  let reset = 0;
+  items.forEach(i => { if (i.state === "done" || i.state === "error"){ i.mask = null; i.state = "queued"; updateBadge(i); drawItem(i); reset++; } });
+  refreshButtons();
+  if (reset) setStatus("Quality changed. Tap “Remove backgrounds” to redo your photos.");
+});
+
+if (!("createImageBitmap" in window)) setStatus("This browser is too old. Please update iOS.");
+</script>
+</body>
+</html>
