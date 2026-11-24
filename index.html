@@ -92,8 +92,8 @@ footer{max-width:980px;margin:6px auto 0;padding:0 16px;font-size:11px;color:var
     <div class="grid2">
       <label class="f"><b>Quality</b>
         <select id="quality">
-          <option value="fast">Balanced · 512 px model (low memory)</option>
-          <option value="max">Maximum · 1024 px model (experimental on iPhone)</option>
+          <option value="tiny">Fast · U²-NetP (5 MB, safest)</option>
+          <option value="better">Better · ISNet (44 MB, experimental)</option>
         </select>
       </label>
       <div class="f"><b>Preview background</b>
@@ -124,7 +124,7 @@ footer{max-width:980px;margin:6px auto 0;padding:0 16px;font-size:11px;color:var
       <button class="btn alt" id="clear" disabled>Clear</button>
     </div>
     <div class="progress" id="progress" hidden><i id="bar"></i></div>
-    <div class="status" id="status">Choose photos to begin. The AI model (~100–200 MB) downloads once, then is cached.</div>
+    <div class="status" id="status">Choose photos to begin. The AI model (5–44 MB) downloads once, then is cached.</div>
     <div class="dl" id="downloads"></div>
   </section>
 
@@ -133,16 +133,16 @@ footer{max-width:980px;margin:6px auto 0;padding:0 16px;font-size:11px;color:var
 </main>
 
 <footer>
-  Model: BiRefNet_lite (MIT) · Runtime: Transformers.js (Apache-2.0) &amp; ONNX Runtime Web (MIT).
+  Models: U²-Net (Apache-2.0), IS-Net (MIT) · Runtime: ONNX Runtime Web (MIT).
   Photos never leave your device.
 </footer>
 
 <script type="module">
 const $ = s => document.querySelector(s);
-const TF_URL = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3";
+const ORT_BASE = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/";
 const MODELS = {
-  fast: { size: 512,  ids: ["shozebDev/birefnet-lite-512-onnx"] },
-  max:  { size: 1024, ids: ["onnx-community/BiRefNet_lite-ONNX", "onnx-community/BiRefNet_lite"] }
+  tiny:   { url: "https://huggingface.co/edgetools/u2netp/resolve/main/u2netp.onnx", sizes: [320], norm: "max",   mb: 5 },
+  better: { url: "https://huggingface.co/xrds/isnet-general-onnx-int8/resolve/main/onnx/model_quantized.onnx", sizes: [512, 1024], norm: "imgly", mb: 44 }
 };
 const MAX_PX = 16000000;   // iOS Safari canvas area limit (with safety margin)
 const THUMB = 700;         // preview size only; exports always use the original file
@@ -150,9 +150,9 @@ const ZIP_GROUP = 8;       // images per ZIP so iPhone memory stays safe
 
 const crumb = v => { try { localStorage.setItem("crumb", v); } catch {} };
 const useGpu = new URLSearchParams(location.search).has("gpu"); // WebGPU is off by default: it crashes many iPhones
-const settings = { crisp: 2.5, shift: 0, quality: "fast" };
+const settings = { crisp: 3, shift: 0, quality: "tiny" };
 const items = [];
-let tf = null, model = null, modelKey = null, busy = false, nextId = 1, objectUrls = [];
+let ort = null, model = null, modelKey = null, busy = false, nextId = 1, objectUrls = [];
 
 /* ---------- small helpers ---------- */
 const tick = () => new Promise(r => setTimeout(r, 0));
@@ -183,78 +183,84 @@ function resizeTo(src, w, h){
   return out;
 }
 
-/* ---------- model ---------- */
-function onModelProgress(p){
-  if (p.status === "progress" && /\.onnx/.test(p.file || "")) {
-    setStatus(`Downloading model… ${Math.round(p.progress || 0)}% (first time only)`);
-    setProgress((p.progress || 0) / 100);
-  }
+/* ---------- model (ONNX Runtime Web, CPU/WASM, low memory) ---------- */
+async function ensureOrt(){
+  if (ort) return ort;
+  setStatus("Loading AI engine…");
+  crumb("loading engine");
+  ort = await import(ORT_BASE + "ort.min.mjs");
+  ort.env.wasm.wasmPaths = ORT_BASE;
+  ort.env.wasm.numThreads = 1;
+  ort.env.wasm.proxy = false;
+  return ort;
 }
 
-async function ensureTf(){
-  if (tf) return tf;
-  setStatus("Loading AI engine…");
-  tf = await import(TF_URL);
-  tf.env.allowLocalModels = false;
-  tf.env.useBrowserCache = true;
-  try { if (!self.crossOriginIsolated) tf.env.backends.onnx.wasm.numThreads = 1; } catch {}
-  try { navigator.storage?.persist?.(); } catch {}
-  return tf;
+async function getModelBytes(url){
+  let cache = null;
+  try { cache = await caches.open("bat-models-v1"); } catch {}
+  if (cache){ const hit = await cache.match(url); if (hit) return new Uint8Array(await hit.arrayBuffer()); }
+  const r = await fetch(url);
+  if (!r.ok) throw new Error("Model download failed (" + r.status + ")");
+  const total = +r.headers.get("content-length") || 0;
+  const reader = r.body.getReader(), chunks = []; let got = 0;
+  for (;;){
+    const { done, value } = await reader.read(); if (done) break;
+    chunks.push(value); got += value.length;
+    setStatus(`Downloading model… ${mb(got)}${total ? " of " + mb(total) : ""} (first time only)`);
+    if (total) setProgress(got / total);
+  }
+  const blob = new Blob(chunks);
+  if (cache){ try { await cache.put(url, new Response(blob)); } catch {} }
+  return new Uint8Array(await blob.arrayBuffer());
 }
 
 async function loadModel(key){
   if (model && modelKey === key) return model;
   model = null; modelKey = null;
-  const { AutoModel, Tensor } = await ensureTf();
-  const spec = MODELS[key], S = spec.size;
-  const plans = [];
-  if (useGpu && navigator.gpu) plans.push({ device: "webgpu", dtype: "fp16" }, { device: "webgpu", dtype: "fp32" });
-  plans.push({ device: "wasm", dtype: "fp32" });
-  let lastErr;
-  for (const id of spec.ids){
-    for (const plan of plans){
-      try {
-        setStatus(`Preparing model (${plan.device}, ${plan.dtype})…`);
-        crumb("downloading/loading model " + plan.device); const m = await AutoModel.from_pretrained(id, { device: plan.device, dtype: plan.dtype, progress_callback: onModelProgress });
-        const inName = m.sessions?.model?.inputNames?.[0] ?? "input_image";
-        crumb("model loaded");
-        if (plan.device === "webgpu"){ // warm-up only needed to validate GPU
-          const dummy = new Tensor("float32", new Float32Array(3 * S * S), [1, 3, S, S]);
-          const out = await m({ [inName]: dummy });
-          Object.values(out).forEach(t => t?.dispose?.());
-        }
-        model = { m, inName, S, plan, id }; modelKey = key;
-        setStatus(`Model ready (${plan.device}).`);
-        return model;
-      } catch (e) {
-        lastErr = e; console.warn("Model plan failed", id, plan, e);
-        if (/404|not found|could not locate/i.test(String(e?.message))) break; // try next repo id
-      }
-    }
-  }
-  throw lastErr || new Error("Model could not be loaded");
+  await ensureOrt();
+  const spec = MODELS[key];
+  crumb("downloading model");
+  const bytes = await getModelBytes(spec.url);
+  setProgress(null);
+  setStatus("Preparing model…"); crumb("creating session");
+  const session = await ort.InferenceSession.create(bytes, {
+    executionProviders: ["wasm"], graphOptimizationLevel: "basic",
+    enableCpuMemArena: false, enableMemPattern: false
+  });
+  crumb("model ready");
+  model = { session, spec, sizeIdx: 0, plan: { device: "cpu" } };
+  modelKey = key;
+  setStatus("Model ready.");
+  return model;
 }
 
-function toTensor(src, S){
-  const { Tensor } = tf;
+function toTensorData(src, S, norm){
   const c = resizeTo(src, S, S);
   const d = c.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, S, S).data;
   c.width = 0;
   const n = S * S, f = new Float32Array(3 * n);
-  const mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225];
-  for (let i = 0; i < n; i++){
-    f[i]         = (d[i*4]     / 255 - mean[0]) / std[0];
-    f[n + i]     = (d[i*4 + 1] / 255 - mean[1]) / std[1];
-    f[2 * n + i] = (d[i*4 + 2] / 255 - mean[2]) / std[2];
+  if (norm === "imgly"){
+    for (let i = 0; i < n; i++){
+      f[i] = (d[i*4] - 128) / 256; f[n + i] = (d[i*4+1] - 128) / 256; f[2*n + i] = (d[i*4+2] - 128) / 256;
+    }
+  } else {
+    let mx = 1e-6; for (let i = 0; i < n; i++){ const a = d[i*4], b = d[i*4+1], c2 = d[i*4+2]; if (a > mx) mx = a; if (b > mx) mx = b; if (c2 > mx) mx = c2; }
+    const mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225];
+    for (let i = 0; i < n; i++){
+      f[i] = (d[i*4] / mx - mean[0]) / std[0]; f[n + i] = (d[i*4+1] / mx - mean[1]) / std[1]; f[2*n + i] = (d[i*4+2] / mx - mean[2]) / std[2];
+    }
   }
-  return new Tensor("float32", f, [1, 3, S, S]);
+  return f;
 }
 
-function maskToCanvas(logits, S){
+function maskToCanvas(vals, S){
+  let mn = Infinity, mx = -Infinity;
+  for (let i = 0; i < S * S; i++){ const v = vals[i]; if (v < mn) mn = v; if (v > mx) mx = v; }
+  const r = (mx - mn) || 1;
   const c = makeCanvas(S, S), x = c.getContext("2d");
   const id = x.createImageData(S, S), d = id.data;
   for (let i = 0; i < S * S; i++){
-    const v = Math.round(255 / (1 + Math.exp(-logits[i])));
+    const v = Math.round(255 * (vals[i] - mn) / r);
     d[i*4] = d[i*4+1] = d[i*4+2] = v; d[i*4+3] = 255;
   }
   x.putImageData(id, 0, 0);
@@ -361,16 +367,24 @@ async function addFiles(files){
 async function processItem(it, m){
   crumb("photo: decoding " + it.file.name);
   const bmp = await decode(it.file);
-  const tensor = toTensor(bmp, m.S);
-  crumb("photo: running model");
+  let lastErr;
+  for (let k = m.sizeIdx; k < m.spec.sizes.length; k++){
+    const S = m.spec.sizes[k];
+    try {
+      crumb("photo: running model at " + S);
+      const data = toTensorData(bmp, S, m.spec.norm);
+      const feeds = { [m.session.inputNames[0]]: new ort.Tensor("float32", data, [1, 3, S, S]) };
+      const out = await m.session.run(feeds);
+      const t = out[m.session.outputNames[0]];
+      const side = Math.round(Math.sqrt(t.data.length));
+      it.mask = maskToCanvas(t.data, side);
+      Object.values(out).forEach(x => x?.dispose?.());
+      m.sizeIdx = k; bmp.close?.(); crumb("ok");
+      return;
+    } catch (e) { lastErr = e; console.warn("size failed", S, e); }
+  }
   bmp.close?.();
-  const res = await m.m({ [m.inName]: tensor });
-  const t = res.output_image ?? Object.values(res)[0];
-  const logits = Float32Array.from(t.data);
-  Object.values(res).forEach(x => x?.dispose?.());
-  tensor.dispose?.();
-  it.mask = maskToCanvas(logits, m.S);
-  crumb("ok");
+  throw lastErr || new Error("Model run failed");
 }
 
 async function runAll(){
@@ -395,7 +409,7 @@ async function runAll(){
     setStatus(`Finished: ${ok} done${bad ? `, ${bad} failed (tap Remove backgrounds to retry)` : ""}. Model backend: ${m.plan.device}.`);
   } catch (e) {
     console.error(e);
-    setStatus("Could not load the model: " + (e?.message || e) + " — check your internet connection and try Balanced quality.");
+    setStatus("Could not load the model: " + (e?.message || e) + " — check your internet connection and try the Fast model.");
     setProgress(null);
   } finally {
     busy = false; refreshButtons(); try { wl?.release(); } catch {}
